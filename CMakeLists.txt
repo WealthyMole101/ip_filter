@@ -32,7 +32,8 @@ target_link_libraries(ip_filter_cli PRIVATE
 )
 target_link_libraries(test_version
     ${Boost_LIBRARIES}
-    ip_filer
+    ip_filter
+    pthread
 )
 
 target_include_directories(test_version_gtest
@@ -42,6 +43,7 @@ target_link_libraries(
     test_version_gtest
     ${GTEST_BOTH_LIBRARIES}
     ip_filter
+    pthread
 )
 
 if (MSVC)
