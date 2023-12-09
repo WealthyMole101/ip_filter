@@ -21,7 +21,7 @@
 // (".11", '.') -> ["", "11"]
 // ("11.22", '.') -> ["11", "22"]
 
-std::pair<uint32_t, std::string>&& pack_ip(std::vector<std::string>& ip)
+const auto pack_ip(std::vector<std::string>& ip)
 {
     uint32_t ip_v4_bin = 0;
     std::string ip_str = "";
