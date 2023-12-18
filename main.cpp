@@ -21,69 +21,56 @@
 // (".11", '.') -> ["", "11"]
 // ("11.22", '.') -> ["11", "22"]
 
-std::pair<uint32_t, std::string>&& pack_ip(std::vector<std::string>& ip)
+uint32_t ip_to_uint(const std::array<uint8_t, 4>& ip_arr)
 {
-    uint32_t ip_v4_bin = 0;
-    std::string ip_str = "";
-    int ip_v4_size = 4;
-
-    for (int i = 0; i < ip_v4_size; i++) {
-        ip_v4_bin |= static_cast<uint8_t>(std::stoi(ip.at(3 - i))) << (i * 8);
-        ip_str += ip.at(i);
-
-        // Не очень решение
-        if (i < (ip_v4_size - 1)) {
-             ip_str += ".";
-        }
-    }
-
-    return std::move(std::make_pair(ip_v4_bin, ip_str));
+    return ip_arr[0] << 24 | ip_arr[1] << 16 | ip_arr[2] << 8 | ip_arr[3];
 }
 
-std::multimap<uint32_t, std::string> filter(const std::vector<std::vector<std::string>> ip_pool, uint8_t octet_key)
+std::string ip_to_string(const std::array<uint8_t, 4>& ip_arr)
 {
-    std::multimap<uint32_t, std::string> result;
-    std::string key = std::to_string(octet_key);
+    std::string res = std::to_string(ip_arr.at(0));
+
+    for (auto it = ip_arr.cbegin() + 1; it != ip_arr.cend(); ++it) {
+        res += "." + std::to_string(*it);
+    }
+
+    return res;
+}
+
+std::vector<std::array<uint8_t, 4>> filter(const std::vector<std::array<uint8_t, 4>> ip_pool, uint8_t octet_key)
+{
+    std::vector<std::array<uint8_t, 4>> result;
 
     for (auto ip = ip_pool.begin(); ip != ip_pool.end(); ++ip) {
-        if (ip->at(0) == key) {
-           auto val = *ip;
-           auto pair = pack_ip(val);
-           result.insert({pair.first, pair.second});
+        if (ip->at(0) == octet_key) {
+           result.push_back(*ip);
         }
     }
 
     return result;
 }
 
-std::multimap<uint32_t, std::string> filter(const std::vector<std::vector<std::string>> ip_pool, uint8_t octet_key0, uint8_t octet_key1)
+std::vector<std::array<uint8_t, 4>> filter(const std::vector<std::array<uint8_t, 4>> ip_pool, uint8_t octet_key0, uint8_t octet_key1)
 {
-    std::multimap<uint32_t, std::string> result;
-    std::string key0 = std::to_string(octet_key0);
-    std::string key1 = std::to_string(octet_key1);
+    std::vector<std::array<uint8_t, 4>> result;
 
     for (auto ip = ip_pool.begin(); ip != ip_pool.end(); ++ip) {
-        if (ip->at(0) == key0 && ip->at(1) == key1) {
-           auto val = *ip;
-           auto pair = pack_ip(val);
-           result.insert({pair.first, pair.second});
+        if (ip->at(0) == octet_key0  && ip->at(1) == octet_key1) {
+           result.push_back(*ip);
         }
     }
 
     return result;
 }
 
-std::multimap<uint32_t, std::string> filter_any(const std::vector<std::vector<std::string>> ip_pool, uint8_t octet_key)
+std::vector<std::array<uint8_t, 4>> filter_any(const std::vector<std::array<uint8_t, 4>> ip_pool, uint8_t octet_key)
 {
-    std::multimap<uint32_t, std::string> result;
-    std::string key = std::to_string(octet_key);
+    std::vector<std::array<uint8_t, 4>> result;
 
     for (auto ip = ip_pool.begin(); ip != ip_pool.end(); ++ip) {
-        auto it = std::find(ip->begin(), ip->end(), key);
+        auto it = std::find(ip->begin(), ip->end(), octet_key);
         if (it != ip->end()) {
-           auto val = *ip;
-           auto pair = pack_ip(val);
-           result.insert({pair.first, pair.second});
+            result.push_back(*ip);
         }
     }
 
@@ -113,35 +100,31 @@ int main (int, char **)
 {
     try
     {
-        std::vector<std::vector<std::string> > ip_pool;
-        std::multimap<uint32_t, std::string> ip_pool_machine;
+        std::vector<std::array<uint8_t, 4>> ip_pool;
 
+        auto converter = [](const std::vector<std::string> ip){
+                std::array<uint8_t, 4> arr;
+                for (uint32_t i = 0; i < arr.size(); i++) {
+                    arr[i] = static_cast<uint8_t>(std::stoi(ip.at(i)));
+                }
+
+                return arr;
+            };
 
         for(std::string line; std::getline(std::cin, line);) {
             std::vector<std::string> v = split(line, '\t');
 
             auto ip = split(v.at(0), '.');
-            ip_pool.push_back(ip);
-
-            auto pair = pack_ip(ip);
-            ip_pool_machine.insert({pair.first, pair.second});
+            std::array<uint8_t, 4> arr = converter(ip);
+            ip_pool.push_back(arr);
         }
+
+        std::sort(ip_pool.begin(), ip_pool.end(), [](const std::array<uint8_t, 4> a, const std::array<uint8_t, 4> b){return ip_to_uint(a) < ip_to_uint(b);});
 
         // TODO reverse lexicographically sort
-        for (auto ip = ip_pool_machine.rbegin(); ip != ip_pool_machine.rend(); ++ip) {
-            std::cout << ip->second << std::endl;
+        for (auto ip = ip_pool.rbegin(); ip != ip_pool.rend(); ++ip) {
+            std::cout << ip_to_string(*ip) << std::endl;
         }
-
-        //for(std::vector<std::vector<std::string> >::const_iterator ip = ip_pool.cbegin(); ip != ip_pool.cend(); ++ip) {
-        //    for(std::vector<std::string>::const_iterator ip_part = ip->cbegin(); ip_part != ip->cend(); ++ip_part) {
-        //        if (ip_part != ip->cbegin()) {
-                    //std::cout << ".";
-
-        //        }
-                //std::cout << *ip_part;
-        //    }
-            //std::cout << std::endl;
-        //}
 
         // 222.173.235.246
         // 222.130.177.64
@@ -153,10 +136,9 @@ int main (int, char **)
 
         // TODO filter by first byte and output
         auto ip_filtred0 = filter(ip_pool, 1);
-        for(auto ip = ip_filtred0.rbegin(); ip != ip_filtred0.rend(); ++ip) {
-            std::cout << ip->second << std::endl;
+        for (auto ip = ip_filtred0.rbegin(); ip != ip_filtred0.rend(); ++ip) {
+            std::cout << ip_to_string(*ip) << std::endl;
         }
-
 
         // 1.231.69.33
         // 1.87.203.225
@@ -165,10 +147,9 @@ int main (int, char **)
         // 1.1.234.8
 
         // TODO filter by first and second bytes and output
-        // ip = filter(46, 70)
         auto ip_filtred1 = filter(ip_pool, 46, 70);
         for(auto ip = ip_filtred1.rbegin(); ip != ip_filtred1.rend(); ++ip) {
-            std::cout << ip->second << std::endl;
+            std::cout << ip_to_string(*ip) << std::endl;
         }
 
         // 46.70.225.39
@@ -177,10 +158,9 @@ int main (int, char **)
         // 46.70.29.76
 
         // TODO filter by any byte and output
-        // ip = filter_any(46)
         auto ip_filtred2 = filter_any(ip_pool, 46);
         for(auto ip = ip_filtred2.rbegin(); ip != ip_filtred2.rend(); ++ip) {
-            std::cout << ip->second << std::endl;
+            std::cout << ip_to_string(*ip) << std::endl;
         }
 
         // 186.204.34.46
